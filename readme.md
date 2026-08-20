@@ -7,7 +7,8 @@ This is just for educational purposes and should not be used in production envir
 
 This does not claim it is the best approach nor the fastest , just a simple one.
 
-## Vision This is really just an idea I had in mind on how would I implement it very simply , without any external dependencies or advanced techniques, and you it is one of those ideas that you just want to code quickly and see if it does actually work , we don't get to do a lot of those anymore work and all + the ai raise that overcomplicates and bloats the whole thing.
+## Vision
+This is really just an idea I had in mind on how would I implement it very simply , without any external dependencies or advanced techniques, and you it is one of those ideas that you just want to code quickly and see if it does actually work , we don't get to do a lot of those anymore work and all + the ai raise that overcomplicates and bloats the whole thing.
 
 With that being said I intend to keep building this into a prod ready lb , that is simple to use and plug to your system if you need a simple lb and reversy proxy behavior.
 
