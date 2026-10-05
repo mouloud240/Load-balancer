@@ -103,7 +103,7 @@ mux.HandleFunc("/",func (w http.ResponseWriter, r *http.Request){
 }
 
 func main() {
-	for port := 3000; port <= 3002; port++ {
+	for port := 3000; port <= 3003; port++ {
 		go startServer(port)
 	}
 

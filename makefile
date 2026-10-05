@@ -2,7 +2,7 @@ run:
 	go run main.go
 
 run_dummy_servers:
-	go run dummy_servers/dummy_server.go
+	go run dummy_server/test_server.go
 
 
 load_test:

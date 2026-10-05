@@ -1,6 +1,7 @@
-package main
+package upstreams
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -13,28 +14,31 @@ import (
 type LoadBalancer struct {
 	current  int
 	mutex    sync.Mutex
-	servers  []*url.URL
+	upstreams []*Upstream
 	client   *http.Client
 }
 
-func NewLoadBalancer(servers []string) (*LoadBalancer, error) {
-	if len(servers) == 0 {
+func NewLoadBalancer(upstreams []url.URL) (*LoadBalancer, error) {
+
+	
+	parsedUpstreams := make([]*Upstream, len(upstreams))
+	for idx,upstream:= range upstreams {
+		parsedUpstreams[idx]= NewUpstream(upstream)
+	}
+	for idx, upstream := range parsedUpstreams {
+		if upstream == nil {
+			fmt.Print("Upstream at index ", idx, " is nil\n")
+
+			continue
+		}
+		fmt.Printf("Upstream: %s, State: %d\n", upstream.Server.String(), upstream.State)
+	}
+	if len(upstreams) == 0 {
 		return nil, ErrNoServers
 	}
 
-	backends := make([]*url.URL, len(servers))
-
-	for i, server := range servers {
-		u, err := url.Parse(server)
-		if err != nil {
-			return nil, err
-		}
-
-		backends[i] = u
-	}
-
 	return &LoadBalancer{
-		servers: backends,
+		upstreams:parsedUpstreams,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -51,20 +55,33 @@ func (e *LBError) Error() string {
 	return e.message
 }
 
-func (l *LoadBalancer) nextServer() *url.URL {
+func (l *LoadBalancer) nextUpstream() *Upstream {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	server := l.servers[l.current]
-	l.current = (l.current + 1) % len(l.servers)
+	server := l.upstreams[l.current]
+	l.current = (l.current + 1) % len(l.upstreams)
+	if server.State == open {
+		server.TransitionToHalfOpen()
+		//If the server is closed we just go to the next one,  for simplicty
+		//If last checked is more than our threshold we can set it half p
+		server = l.upstreams[l.current]
+	  l.current = (l.current + 1) % len(l.upstreams)
+	}
+	if server.State == halfOpen{
 
-	return server
+		// If the server is half open we will pass requests as well
+		
+	}
+
+return server
 }
 
 func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
-	backend := l.nextServer()
+	upstream:= l.nextUpstream()
+	backend:=upstream.Server
 
-	target := *backend
+	target := backend
 	target.Path = strings.TrimRight(backend.Path, "/") + r.URL.Path
 	target.RawQuery = r.URL.RawQuery
 
@@ -93,6 +110,7 @@ func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
 	resp, err := l.client.Do(req)
 	if err != nil {
 		http.Error(w, "backend unavailable", http.StatusBadGateway)
+		upstream.recordFailure()
 		return
 	}
 	defer resp.Body.Close()
@@ -105,6 +123,10 @@ func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		upstream.recordSuccess()
+	}
+	
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		return
 	}
@@ -117,7 +139,6 @@ func (l *LoadBalancer) Run() error {
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
-
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -125,19 +146,4 @@ func (l *LoadBalancer) Run() error {
 	}
 
 	return server.ListenAndServe()
-}
-
-func main() {
-	lb, err := NewLoadBalancer([]string{
-		"http://localhost:3000",
-		"http://localhost:3001",
-		"http://localhost:3002",
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	if err := lb.Run(); err != nil {
-		panic(err)
-	}
 }
