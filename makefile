@@ -1,5 +1,8 @@
 run:
-	go run main.go
+	go run ./cmd
+
+dev:
+	air
 
 run_dummy_servers:
 	go run dummy_server/test_server.go

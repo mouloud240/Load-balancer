@@ -7,8 +7,8 @@ import (
 	"github.com/go-yaml/yaml"
 )
 type RawConfig struct{
-	upstreams[]  string `yaml:"upstreams"`
-	listener  string  `yaml:"listener"`
+	Upstreams[]  string `yaml:"upstreams"`
+	Listener  string  `yaml:"listener"`
 }
 type Config struct{
 	Upstreams []url.URL
@@ -28,13 +28,13 @@ func LoadConfig() *Config{
 
 	}
 	raw:=RawConfig{}
-	yaml.Unmarshal(data,raw)
+	yaml.Unmarshal(data,&raw)
 
-	rawUrls:=raw.upstreams
+	rawUrls:=raw.Upstreams
 	upstreams := make([]url.URL, len(rawUrls))
 	for i, ru:= range rawUrls {
     u, _ := url.Parse(ru)
     upstreams[i] = *u // u is nil on failure -> panic: nil pointer dereference
 }
-	return NewConfig(upstreams,raw.listener)
+	return NewConfig(upstreams,raw.Listener)
 }

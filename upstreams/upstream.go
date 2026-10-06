@@ -28,7 +28,6 @@ type Upstream struct{
 	 lastChecked time.Time //For the open state , we flip it to half open if threshold of time has passed
 }
 
-//TODO : decide whether to  flip here or on the lb service
 func (u *Upstream) recordFailure() {
 	u.mux.Lock()
 	defer u.mux.Unlock()
