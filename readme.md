@@ -1,34 +1,49 @@
-## Overview
-A Very simple implementation of a golang load l7 load balancer with a simple round-robin algorithm. This load balancer can distribute incoming HTTP requests to multiple backend servers, improving the performance and reliability of your web applications.
+# Load Balancer
 
+A simple L7 HTTP load balancer in Go using round-robin. Educational project, not for production.
 
-## Disclaimer
-This is just for educational purposes and should not be used in production environments.
+## Current state
 
-This does not claim it is the best approach nor the fastest , just a simple one.
+- Round-robin request distribution across configured upstreams.
+- YAML file configuration (`config.yaml`, see `config.example.yaml`).
+- Basic circuit breaking per upstream (closed / open / half-open).
+- Docker image + compose setup (`Dockerfile`, `docker-compose.yml`).
 
-## Vision
-This is really just an idea I had in mind on how would I implement it very simply , without any external dependencies or advanced techniques, and you it is one of those ideas that you just want to code quickly and see if it does actually work , we don't get to do a lot of those anymore work and all + the ai raise that overcomplicates and bloats the whole thing.
+## Setup
 
-With that being said I intend to keep building this into a prod ready lb , that is simple to use and plug to your system if you need a simple lb and reversy proxy behavior.
+Prerequisites: Go 1.26+ (or Docker).
 
-Starting with customizablity of servers and running params , so you can actually use this a cli tool (some .yaml file or .json file to configure it)
-And dockerising this to imbrace the spirit of microservices and containerization.
-## Running the Load Balancer
-To run the load balancer, follow these steps:
-1. Clone the repository to your local machine.
-`git clone github.com/mouloud240/load-balancer`
-2. Navigate to the project directory.
-`cd load-balancer`
-3. Run the make file command
-`make run`
-4. The repo also comes with 3 dummy servers that you can launch to test
-`make run_dummy_servers`
+```sh
+git clone https://github.com/mouloud240/Load-balancer.git
+cd Load-balancer
+```
 
+Copy the example config and adjust upstreams:
 
-You can also run a simple auto cannon load test using :
-`make load_test`
+```sh
+cp config.example.yaml config.yaml
+```
 
-And view the end distribution of requests across the servers using:
-`make view_distribution`
+Run the load balancer:
 
+```sh
+make run
+```
+
+In another terminal, start the dummy backend servers for testing:
+
+```sh
+make run_dummy_servers
+```
+
+Or run everything with Docker:
+
+```sh
+docker compose up --build
+```
+
+The balancer listens on `:8080`. Optional helpers: `make load_test` (autocannon run) and `make view_distribution` (request counts per backend).
+
+## Roadmap
+
+Tracked as [GitHub issues](https://github.com/mouloud240/Load-balancer/issues).
