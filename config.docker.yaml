@@ -1,0 +1,5 @@
+listener: ":8080"
+upstreams:
+  - "http://dummy:3000"
+  - "http://dummy:3001"
+  - "http://dummy:3002"

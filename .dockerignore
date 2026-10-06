@@ -1,0 +1,6 @@
+.git/
+tmp/
+dump/
+build-errors.log
+todo.txt
+config.yaml

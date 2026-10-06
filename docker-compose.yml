@@ -1,0 +1,16 @@
+services:
+  lb:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - dummy
+
+  dummy:
+    build: .
+    command: ["./dummy"]
+    expose:
+      - "3000"
+      - "3001"
+      - "3002"
+      - "3003"
