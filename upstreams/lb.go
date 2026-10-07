@@ -5,10 +5,11 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lb/config"
 )
 
 type LoadBalancer struct {
@@ -18,12 +19,11 @@ type LoadBalancer struct {
 	client   *http.Client
 }
 
-func NewLoadBalancer(upstreams []url.URL) (*LoadBalancer, error) {
-
+func NewLoadBalancer(upstreams []config.UpstreamConfig) (*LoadBalancer, error) {
 	
 	parsedUpstreams := make([]*Upstream, len(upstreams))
 	for idx,upstream:= range upstreams {
-		parsedUpstreams[idx]= NewUpstream(upstream)
+		parsedUpstreams[idx]= NewUpstream(upstream.URL, upstream.Weight)
 	}
 	for idx, upstream := range parsedUpstreams {
 		if upstream == nil {
@@ -41,6 +41,7 @@ func NewLoadBalancer(upstreams []url.URL) (*LoadBalancer, error) {
 		upstreams:parsedUpstreams,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
+			
 		},
 	}, nil
 }
@@ -55,30 +56,38 @@ func (e *LBError) Error() string {
 	return e.message
 }
 
-func (l *LoadBalancer) nextUpstream() *Upstream {
+//Scan from snapshotted start so multiple halfOpen/open upstreams can't force a blind pick, we only return closed or admitted halfOpen probe
+func (l *LoadBalancer) CheckNextAvailable() (*Upstream, error) {
+
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	server := l.upstreams[l.current]
-	l.current = (l.current + 1) % len(l.upstreams)
-	if server.State == open {
-		server.TransitionToHalfOpen()
-		//If the server is closed we just go to the next one,  for simplicty
-		//If last checked is more than our threshold we can set it half p
-		server = l.upstreams[l.current]
-	  l.current = (l.current + 1) % len(l.upstreams)
-	}
-	if server.State == halfOpen{
+	start := l.current
+	for i := 0; i < len(l.upstreams); i++ {
+		idx := (start + i) % len(l.upstreams)
+		server := l.upstreams[idx]
 
-		// If the server is half open we will pass requests as well
-		
-	}
+		admitted, exhausted := server.ClaimRequest()
+		if !admitted {
+			continue
+		}
 
-return server
+		if exhausted {
+			l.current = (idx + 1) % len(l.upstreams)
+		} else {
+			l.current = idx
+		}
+		return server, nil
+	}
+	return nil, ErrNoServers
 }
 
 func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
-	upstream:= l.nextUpstream()
+	upstream, err := l.CheckNextAvailable()
+	if err != nil {
+		http.Error(w, "no backend servers available", http.StatusServiceUnavailable)
+		return
+	}
 	backend:=upstream.Server
 
 	target := backend
@@ -95,6 +104,7 @@ func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create request", http.StatusInternalServerError)
 		return
 	}
+	//TODO: Maybe I can use context cloning instead of full headers clone
 
 	req.Header = r.Header.Clone()
 
@@ -109,6 +119,7 @@ func (l *LoadBalancer) handler(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := l.client.Do(req)
 	if err != nil {
+		fmt.Print(err.Error())
 		http.Error(w, "backend unavailable", http.StatusBadGateway)
 		upstream.recordFailure()
 		return

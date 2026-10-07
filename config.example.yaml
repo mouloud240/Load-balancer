@@ -1,5 +1,8 @@
 listener: ":8080"
 upstreams:
-  - "localhost:3000"
-  - "localhost:3001"
-  - "localhost:3002"
+  - upstream: "localhost:3000"
+    weight: 1
+  - upstream: "localhost:3001"
+    weight: 1
+  - upstream: "localhost:3002"
+    weight: 1

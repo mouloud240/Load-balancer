@@ -6,16 +6,24 @@ import (
 
 	"github.com/go-yaml/yaml"
 )
+type weightedUpstream struct{
+	Upstream string `yaml:"upstream"`
+	Weight  int   `yaml:"weight"`
+}
 type RawConfig struct{
-	Upstreams[]  string `yaml:"upstreams"`
+	Upstreams[]  weightedUpstream `yaml:"upstreams"`
 	Listener  string  `yaml:"listener"`
 }
+type UpstreamConfig struct{
+	URL url.URL
+	Weight int
+}
 type Config struct{
-	Upstreams []url.URL
+	Upstreams []UpstreamConfig
 	Listener  string
 }
 
-func NewConfig(upstreams []url.URL, listener string) *Config {
+func NewConfig(upstreams []UpstreamConfig, listener string) *Config {
 	return &Config{
 		Upstreams: upstreams,
 		Listener:listener,
@@ -31,10 +39,14 @@ func LoadConfig() *Config{
 	yaml.Unmarshal(data,&raw)
 
 	rawUrls:=raw.Upstreams
-	upstreams := make([]url.URL, len(rawUrls))
+	upstreams := make([]UpstreamConfig, len(rawUrls))
 	for i, ru:= range rawUrls {
-    u, _ := url.Parse(ru)
-    upstreams[i] = *u // u is nil on failure -> panic: nil pointer dereference
+    u, _ := url.Parse(ru.Upstream)
+    weight := ru.Weight
+    if weight <= 0 {
+      weight = 1
+    }
+    upstreams[i] = UpstreamConfig{URL: *u, Weight: weight} // u is nil on failure -> panic: nil pointer dereference
 }
 	return NewConfig(upstreams,raw.Listener)
 }
